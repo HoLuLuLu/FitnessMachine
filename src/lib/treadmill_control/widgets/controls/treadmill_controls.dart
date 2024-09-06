@@ -12,25 +12,9 @@ class TreadmillControls extends StatefulWidget {
   TreadmillControlsState createState() => TreadmillControlsState();
 }
 
-class TreadmillControlsState extends State<TreadmillControls>
-    with SingleTickerProviderStateMixin {
+class TreadmillControlsState extends State<TreadmillControls> {
   bool _isRunning = false;
   bool _isPaused = false;
-  bool _isLongPressing = false;
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   void _startOrPauseWorkout() {
     setState(() {
@@ -38,13 +22,12 @@ class TreadmillControlsState extends State<TreadmillControls>
         _isRunning = true;
         _isPaused = false;
         widget._workoutStateManager.startWorkout();
+      } else if (_isPaused) {
+        _isPaused = false;
+        widget._workoutStateManager.resumeWorkout();
       } else {
-        if (_isPaused) {
-          widget._workoutStateManager.resumeWorkout();
-        } else {
-          widget._workoutStateManager.pauseWorkout();
-        }
-        _isPaused = !_isPaused;
+        _isPaused = true;
+        widget._workoutStateManager.pauseWorkout();
       }
     });
   }
@@ -54,7 +37,6 @@ class TreadmillControlsState extends State<TreadmillControls>
       _isRunning = false;
       _isPaused = false;
       widget._workoutStateManager.stopWorkout();
-      _controller.reset(); // Fortschrittsanzeige zurücksetzen
     });
   }
 
@@ -62,69 +44,43 @@ class TreadmillControlsState extends State<TreadmillControls>
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Center(
-      child: GestureDetector(
-        onLongPressStart: (_) {
-          _controller.forward(); // Animation starten
-          _isLongPressing = true;
-        },
-        onLongPressEnd: (_) async {
-          if (_controller.isCompleted) {
-            _stopWorkout(); // Stopp bei vollständiger Animation (2 Sekunden)
-          } else {
-            _controller.reset(); // Reset, wenn nicht lang genug gedrückt
-          }
-          _isLongPressing = false;
-        },
-        onTap:
-            _startOrPauseWorkout, // Normaler Tap startet oder pausiert das Workout
-        child: Stack(
-          alignment: Alignment.center,
+    return Expanded(
+      child: Card(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Fortschrittsring
-            SizedBox(
-              width: 120,
-              height: 120,
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return CircularProgressIndicator(
-                    value: _controller.value, // Fortschritt der Animation
-                    strokeWidth: 8.0,
-                    color: colorScheme.primary,
-                    backgroundColor: colorScheme.onPrimary.withOpacity(0.2),
-                  );
-                },
+            ElevatedButton(
+              onPressed: _startOrPauseWorkout,
+              style: ElevatedButton.styleFrom(
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(20),
+                backgroundColor: colorScheme.primary,
+              ),
+              child: Icon(
+                _isRunning
+                    ? (_isPaused ? Icons.play_arrow_outlined : Icons.pause)
+                    : Icons.play_arrow,
+                color: colorScheme.onPrimary,
+                size: 40,
               ),
             ),
-            // Runde Schaltfläche
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return ScaleTransition(scale: animation, child: child);
-              },
-              child: _buildButtonIcon(colorScheme),
+            const SizedBox(width: 20),
+            ElevatedButton(
+              onPressed: _isRunning ? _stopWorkout : null,
+              style: ElevatedButton.styleFrom(
+                shape: const CircleBorder(),
+                padding: const EdgeInsets.all(20),
+                backgroundColor: _isRunning
+                    ? colorScheme.secondary
+                    : colorScheme.secondary.withOpacity(0.5),
+              ),
+              child: Icon(
+                Icons.stop,
+                color: colorScheme.onSecondary,
+                size: 40,
+              ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButtonIcon(ColorScheme colorScheme) {
-    return Container(
-      key: ValueKey(_isRunning && !_isPaused),
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: colorScheme.primary,
-      ),
-      child: Center(
-        child: Icon(
-          _isRunning && !_isPaused ? Icons.pause : Icons.play_arrow,
-          color: colorScheme.onPrimary,
-          size: 50,
         ),
       ),
     );
